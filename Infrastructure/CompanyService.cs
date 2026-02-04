@@ -1,0 +1,201 @@
+
+using System.Configuration;
+using System.Text.RegularExpressions;
+using ForaFin.CompaniesApi.Application.Dtos;
+using ForaFin.CompaniesApi.Application.Interfaces;
+using ForaFin.CompaniesApi.Domain;
+using ForaFin.CompaniesApi.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using static ForaFin.CompaniesApi.Domain.External.EdgarCompanyInfo;
+
+namespace ForaFin.CompaniesApi.Infrastructure;
+public class CompanyService : ICompanyService
+{
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<CompanyService> _logger;
+    private ISecEdgarService _secEdgarService;
+    private readonly IForaFinRepository _foraFinRepository;
+    public CompanyService(ISecEdgarService secEdgarService, IConfiguration configuration,
+                IForaFinRepository foraFinRepository, ILogger<CompanyService> logger)
+    {
+        _secEdgarService = secEdgarService;
+        _logger = logger;
+        _configuration = configuration;
+        _foraFinRepository = foraFinRepository;
+    }
+
+    public async Task<List<ForaFinCompaniesOutputDto>> GetCompanyFactsAsync(ForaFinCompaniesInputDto? Filter)
+    {
+        _logger.LogInformation("Fetching company facts for Filter: {Filter}", Filter?.StartsWith);
+        var companies = await _foraFinRepository.GetAllAsync(Filter?.StartsWith ?? string.Empty);
+        var res = new List<ForaFinCompaniesOutputDto>();
+        decimal tenBillion = 10_000_000_000M;
+        foreach(var company in companies)
+        {
+            var y2018_2022 = new Dictionary<int, bool>()
+            {
+                {2018, false },
+                {2019, false },
+                {2020, false },
+                {2021, false },
+                {2022, false }
+            };
+            var incomeByYear = new Dictionary<int, decimal>();
+            decimal highestIncome_y2018_2022 = decimal.MinValue;
+            foreach(var incomeInfo in company.IncomeInfos)
+            {
+                incomeByYear[incomeInfo.Year] = incomeInfo.Income;
+                if(y2018_2022.Remove(incomeInfo.Year))
+                {
+                    if(highestIncome_y2018_2022 < incomeInfo.Income)
+                    {
+                        highestIncome_y2018_2022 = incomeInfo.Income;
+                    }
+                }
+            }
+
+            #region Standard Fundable Amount:
+            decimal standardFundableAmount = 0;
+            // Company must have income data for all years between (and including) 2018 and 2022.
+            if(y2018_2022.Count != 0)
+            {
+                // If they did not, their Standard Fundable Amount is $0.
+                standardFundableAmount = 0;
+            }
+            else if(incomeByYear[2021] <= 0 || incomeByYear[2022] <= 0)
+            {
+                // Company must have had positive income in both 2021 and 2022.
+                // If they did not, their Standard Fundable Amount is $0.
+                standardFundableAmount = 0;
+            }
+            else
+            {
+                //Using highest income between 2018 and 2022:
+                if(highestIncome_y2018_2022 >= tenBillion)
+                {
+                    standardFundableAmount = 0.1233M * highestIncome_y2018_2022;
+                } else
+                {
+                    standardFundableAmount = 0.2151M * highestIncome_y2018_2022;
+                }
+            }
+            #endregion
+
+            #region Special Fundable Amount:
+            // Initially, the Special Fundable Amount is the same as Standard Fundable Amount.
+            decimal specialFundableAmount = standardFundableAmount;
+            // If the company name starts with a vowel, add 15% to the standard funding amount.
+            if(!string.IsNullOrEmpty(company.Name) && "AEIOU".Contains(char.ToUpper(company.Name[0])))
+            {
+               specialFundableAmount += 0.15M * standardFundableAmount;
+            }
+            else if(incomeByYear.TryGetValue(2021, out decimal income2021) && incomeByYear.TryGetValue(2022, out decimal income2022))
+            {
+                if(income2022 < income2021)
+                {
+                    // If the company’s 2022 income was less than their 2021 income, subtract 25% from their standard funding amount.
+                    specialFundableAmount -= 0.25M * standardFundableAmount;
+                }
+            }
+
+            #endregion
+
+            res.Add(new ForaFinCompaniesOutputDto(
+                company.Id,
+                company.Name,
+                standardFundableAmount,
+                specialFundableAmount
+            ));
+        }
+        return res;
+    }
+    public async Task<string[]> GetAllCikAsync()
+    {
+        var ciks = _configuration.GetValue<string>("SecEdgarCiks");
+        if(string.IsNullOrEmpty(ciks))
+        {
+            return await Task.FromResult(Array.Empty<string>());
+        }
+        return await Task.FromResult(ciks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    }
+    private async Task<ForaFinCompany?> ImportCompanyByCikAsync(string cik, CancellationToken ct = default)
+    {
+        var company = default(ForaFinCompany);
+        var companyFacts = await _secEdgarService.GetCompanyFactsAsync(cik, ct);
+        if(companyFacts != null && !string.IsNullOrEmpty(companyFacts.EntityName))
+        {
+            company = new ForaFinCompany
+            {
+                Id = int.Parse(cik),
+                Name = companyFacts.EntityName
+            };
+            //get the income infos
+            if(companyFacts.Facts?.UsGaap?.NetIncomeLoss?.Units?.Usd != null)
+            {
+                foreach(InfoFactUsGaapIncomeLossUnitsUsd item in companyFacts.Facts.UsGaap.NetIncomeLoss.Units.Usd)
+                {
+                    if(item.Form == "10-K" && !string.IsNullOrEmpty(item.Frame))
+                    {
+                        var match = Regex.Match(item.Frame, @"^CY(\d{4})$");
+                        if(match.Success && item.Val > 0)
+                        {
+                            //get this 4 digits
+                            var year = match.Groups[1].Value;
+                            company.IncomeInfos.Add(new ForaFinCompanyIncomeInfo
+                            {
+                                Year = int.Parse(year),
+                                Income = item.Val,
+                                CompanyId = company.Id
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            _logger.LogError("No company facts found for CIK: {Cik} or Company Name is null/empty", cik);
+        }
+        return company;
+    }
+    public async Task<string> ImportCompaniesAsync(CancellationToken ct = default)
+    {
+        var ciks = await GetAllCikAsync();
+        var totalCiks = ciks.Length;
+        var importedCiks = 0;
+        var bacthSize = 10;
+        foreach(var bacthCik in ciks.Chunk(bacthSize))
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var listEntities = bacthCik.Select(cik => ImportCompanyByCikAsync(cik));
+                var companies = await Task.WhenAll(listEntities);
+                var companiesToSave = companies.Where(c => c != null).ToList();
+                if(companiesToSave != null && companiesToSave.Count > 0)
+                {
+                    await _foraFinRepository.AddRangeAsync(companiesToSave!, ct);
+                    importedCiks += companiesToSave.Count;
+                }
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Error importing company batch");
+            }
+        }
+        return $"Imported {importedCiks} out of {totalCiks} CIKs.";
+    }
+    public async Task<List<ForaFinCompanyDto>> GetAllCompaniesAsync()
+    {
+        var companies = await _foraFinRepository.GetAllAsync(string.Empty);
+        return companies.Select(c => new ForaFinCompanyDto(
+            c.Id,
+            c.Name,
+            c.IncomeInfos.Select(i =>
+                new ForaFinCompanyIncomeInfoDto(i.Id, i.Year, i.Income, i.CompanyId)
+            ).ToList()
+        )).ToList();
+    }
+}
