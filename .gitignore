@@ -7,3 +7,5 @@ bin/
 .idea/
 node_modules/
 dist/
+ForaFin/obj/
+ForaFin/bin/
