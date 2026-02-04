@@ -5,6 +5,7 @@ I use a Serverless architecture, following the Clean Architecture and Some Desig
 The solution is located in the ForaFin project, it exposes some http endpoints as Azure Functions.
 It works with a in-memory database for develop mode. And use a Logs/ folder to register the logs from the app.
 We need to run that project and we will get 4 endpoints urls locally.
+It was build using NET8.
 
 ```dotnet clean && dotnet build && dotnet test```
 
