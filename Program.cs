@@ -12,8 +12,21 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 
 var builder = FunctionsApplication.CreateBuilder(args);
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day) // Log local en archivos
+    .CreateLogger();
+
+builder.Services.AddLogging(loggingBuilder =>
+{
+    loggingBuilder.AddSerilog(dispose: true);
+});
 
 builder.ConfigureFunctionsWebApplication();
 
@@ -52,5 +65,4 @@ builder.Services.AddHttpClient("ExternalApi", client =>
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
-
 app.Run();
