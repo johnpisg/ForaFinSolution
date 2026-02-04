@@ -13,9 +13,9 @@ public class TokenValidator : ITokenValidator
 
     public TokenValidator(IConfiguration configuration)
     {
-        SecretKey = configuration.GetValue<string>("SecretKey")!;
-        MyIssuer = configuration.GetValue<string>("MyIssuer")!;
-        MyAudience = configuration.GetValue<string>("MyAudience")!;
+        SecretKey = configuration["SecretKey"]!;
+        MyIssuer = configuration["MyIssuer"]!;
+        MyAudience = configuration["MyAudience"]!;
     }
     public Task<string> GenerateTokenAsync()
     {

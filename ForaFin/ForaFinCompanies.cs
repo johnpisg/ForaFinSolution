@@ -36,16 +36,16 @@ public class ForaFinCompanies
 
         var token = bearerToken.Replace("Bearer ", "");
         var user = await _tokenValidator.ValidateTokenAsync(token);
-        if (user == null)
+        if (user == null || user.Claims == null || !user.Claims.Any(c => c.Type == "name"))
             throw new UnauthorizedAccessException("Invalid token.");
 
         // Si llega aquí, el token es válido. Puedes obtener el nombre del usuario:
-        var userName = user.Identity?.Name;
+        var userName = user.Claims.First(c => c.Type == "name").Value;
         return userName;
     }
 
     [Function("GetForaFinCompanies")]
-    public async Task<IResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, CancellationToken cancellationToken)
+    public async Task<IResult> GetForaFinCompanies([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, CancellationToken cancellationToken)
     {
         try
         {

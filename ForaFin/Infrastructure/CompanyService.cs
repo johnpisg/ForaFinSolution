@@ -122,7 +122,7 @@ public class CompanyService : ICompanyService
     public async Task<string[]> GetAllCikAsync(CancellationToken ct = default)
     {
         _logger.LogInformation("Retrieving all CIKs from configuration.");
-        var ciks = _configuration.GetValue<string>("SecEdgarCiks");
+        var ciks = _configuration["SecEdgarCiks"];
         if(string.IsNullOrEmpty(ciks))
         {
             return await Task.FromResult(Array.Empty<string>());
