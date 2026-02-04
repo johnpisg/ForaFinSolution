@@ -1,0 +1,56 @@
+using ForaFin.CompaniesApi.Application.Interfaces;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+public class TokenValidator : ITokenValidator
+{
+    private const string SecretKey = "FOREFIN_AZURE_FUCTION_IMPLEMENTED_AS_SOLUTION_SECRET_KEY_12345";
+    private const string MyIssuer = "ForeFinAppLocal";
+    private const string MyAudience = "ForeFinAzureFunction";
+
+    public Task<string> GenerateTokenAsync()
+    {
+        var key = Encoding.ASCII.GetBytes(SecretKey);
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(new[] { new Claim("name", "TestUser") }),
+            Expires = DateTime.UtcNow.AddHours(1),
+            Issuer = MyIssuer,
+            Audience = MyAudience,
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+        };
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+        return Task.FromResult(tokenHandler.WriteToken(token));
+    }
+
+    public async Task<ClaimsPrincipal?> ValidateTokenAsync(string token)
+    {
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(SecretKey);
+
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidIssuer = MyIssuer,
+                ValidateAudience = true,
+                ValidAudience = MyAudience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero // Elimina el margen de 5 min por defecto
+            };
+
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
+            return await Task.FromResult(principal);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
