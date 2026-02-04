@@ -13,7 +13,7 @@ public class ForaFinRepository: IForaFinRepository
         _dbContext = dbContext;
     }
 
-    public async Task<IEnumerable<ForaFinCompany>> GetAllAsync(string startsWith)
+    public async Task<IEnumerable<ForaFinCompany>> GetAllAsync(string startsWith, CancellationToken ct = default)
     {
         var query = _dbContext.Companies.AsNoTracking().AsQueryable();
 
@@ -23,7 +23,7 @@ public class ForaFinRepository: IForaFinRepository
             query = query.Where(c => c.Name.ToLower().StartsWith(startsWith));
         }
 
-        return await query.Include(c => c.IncomeInfos).OrderBy(c => c.Name).ToListAsync();
+        return await query.Include(c => c.IncomeInfos).OrderBy(c => c.Name).ToListAsync(ct);
     }
 
     public async Task AddAsync(ForaFinCompany item)

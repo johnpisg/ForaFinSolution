@@ -23,7 +23,7 @@ public class ForaFinCompanies
     }
 
     [Function("GetForaFinCompanies")]
-    public async Task<IResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req)
+    public async Task<IResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, CancellationToken cancellationToken)
     {
         try
         {
@@ -36,7 +36,9 @@ public class ForaFinCompanies
                     body = await JsonSerializer.DeserializeAsync<ForaFinCompaniesInputDto>(req.Body, _jsonOptions);
                 }catch{}
             }
-            var result = await _companyService.GetCompanyFactsAsync(body);
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+            var result = await _companyService.GetCompanyFactsAsync(body, vinculado.Token);
             return Results.Ok(result);
         }
         catch(Exception ex)
@@ -52,7 +54,6 @@ public class ForaFinCompanies
         try
         {
             _logger.LogInformation("C# HTTP trigger function ImportCompanies.");
-            //5 minutes of timeout
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
             var msg = await _companyService.ImportCompaniesAsync(vinculado.Token);
@@ -66,12 +67,14 @@ public class ForaFinCompanies
     }
 
     [Function("GetAllCompanies")]
-    public async Task<IResult> GetAllCompanies([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
+    public async Task<IResult> GetAllCompanies([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req, CancellationToken cancellationToken)
     {
         try
         {
             _logger.LogInformation("C# HTTP trigger function GetAllCompanies.");
-            var result = await _companyService.GetAllCompaniesAsync();
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+            var result = await _companyService.GetAllCompaniesAsync(vinculado.Token);
             return Results.Ok(result);
         }
         catch(Exception ex)

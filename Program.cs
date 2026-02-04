@@ -23,6 +23,7 @@ builder.Services
 
 builder.Services.AddDbContext<ForaFinDb>(opt =>
     opt
+    // .UseSqlServer("connString", sqlOptions => sqlOptions.EnableRetryOnFailure())
     .UseInMemoryDatabase("ForaFinDb")
     .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
 );

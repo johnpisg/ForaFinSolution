@@ -7,6 +7,8 @@ using ForaFin.CompaniesApi.Domain;
 using ForaFin.CompaniesApi.Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 using static ForaFin.CompaniesApi.Domain.External.EdgarCompanyInfo;
 
 namespace ForaFin.CompaniesApi.Infrastructure;
@@ -16,6 +18,7 @@ public class CompanyService : ICompanyService
     private readonly ILogger<CompanyService> _logger;
     private ISecEdgarService _secEdgarService;
     private readonly IForaFinRepository _foraFinRepository;
+    private readonly AsyncRetryPolicy _retryPolicy ;
     public CompanyService(ISecEdgarService secEdgarService, IConfiguration configuration,
                 IForaFinRepository foraFinRepository, ILogger<CompanyService> logger)
     {
@@ -23,16 +26,22 @@ public class CompanyService : ICompanyService
         _logger = logger;
         _configuration = configuration;
         _foraFinRepository = foraFinRepository;
+
+        _retryPolicy = Policy.Handle<HttpRequestException>()
+            .Or<OperationCanceledException>()
+            .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
     }
 
-    public async Task<List<ForaFinCompaniesOutputDto>> GetCompanyFactsAsync(ForaFinCompaniesInputDto? Filter)
+    public async Task<List<ForaFinCompaniesOutputDto>> GetCompanyFactsAsync(ForaFinCompaniesInputDto? Filter, CancellationToken ct = default)
     {
         _logger.LogInformation("Fetching company facts for Filter: {Filter}", Filter?.StartsWith);
-        var companies = await _foraFinRepository.GetAllAsync(Filter?.StartsWith ?? string.Empty);
+        var companies = await _foraFinRepository.GetAllAsync(Filter?.StartsWith ?? string.Empty, ct);
         var res = new List<ForaFinCompaniesOutputDto>();
         decimal tenBillion = 10_000_000_000M;
         foreach(var company in companies)
         {
+            ct.ThrowIfCancellationRequested();
+
             var y2018_2022 = new Dictionary<int, bool>()
             {
                 {2018, false },
@@ -110,7 +119,7 @@ public class CompanyService : ICompanyService
         }
         return res;
     }
-    public async Task<string[]> GetAllCikAsync()
+    public async Task<string[]> GetAllCikAsync(CancellationToken ct = default)
     {
         var ciks = _configuration.GetValue<string>("SecEdgarCiks");
         if(string.IsNullOrEmpty(ciks))
@@ -121,43 +130,46 @@ public class CompanyService : ICompanyService
     }
     private async Task<ForaFinCompany?> ImportCompanyByCikAsync(string cik, CancellationToken ct = default)
     {
-        var company = default(ForaFinCompany);
-        var companyFacts = await _secEdgarService.GetCompanyFactsAsync(cik, ct);
-        if(companyFacts != null && !string.IsNullOrEmpty(companyFacts.EntityName))
+        return await _retryPolicy.ExecuteAsync(async (token) =>
         {
-            company = new ForaFinCompany
+            var company = default(ForaFinCompany);
+            var companyFacts = await _secEdgarService.GetCompanyFactsAsync(cik, ct);
+            if(companyFacts != null && !string.IsNullOrEmpty(companyFacts.EntityName))
             {
-                Id = int.Parse(cik),
-                Name = companyFacts.EntityName
-            };
-            //get the income infos
-            if(companyFacts.Facts?.UsGaap?.NetIncomeLoss?.Units?.Usd != null)
-            {
-                foreach(InfoFactUsGaapIncomeLossUnitsUsd item in companyFacts.Facts.UsGaap.NetIncomeLoss.Units.Usd)
+                company = new ForaFinCompany
                 {
-                    if(item.Form == "10-K" && !string.IsNullOrEmpty(item.Frame))
+                    Id = int.Parse(cik),
+                    Name = companyFacts.EntityName
+                };
+                //get the income infos
+                if(companyFacts.Facts?.UsGaap?.NetIncomeLoss?.Units?.Usd != null)
+                {
+                    foreach(InfoFactUsGaapIncomeLossUnitsUsd item in companyFacts.Facts.UsGaap.NetIncomeLoss.Units.Usd)
                     {
-                        var match = Regex.Match(item.Frame, @"^CY(\d{4})$");
-                        if(match.Success && item.Val > 0)
+                        if(item.Form == "10-K" && !string.IsNullOrEmpty(item.Frame))
                         {
-                            //get this 4 digits
-                            var year = match.Groups[1].Value;
-                            company.IncomeInfos.Add(new ForaFinCompanyIncomeInfo
+                            var match = Regex.Match(item.Frame, @"^CY(\d{4})$");
+                            if(match.Success && item.Val > 0)
                             {
-                                Year = int.Parse(year),
-                                Income = item.Val,
-                                CompanyId = company.Id
-                            });
+                                //get this 4 digits
+                                var year = match.Groups[1].Value;
+                                company.IncomeInfos.Add(new ForaFinCompanyIncomeInfo
+                                {
+                                    Year = int.Parse(year),
+                                    Income = item.Val,
+                                    CompanyId = company.Id
+                                });
+                            }
                         }
                     }
                 }
             }
-        }
-        else
-        {
-            _logger.LogError("No company facts found for CIK: {Cik} or Company Name is null/empty", cik);
-        }
-        return company;
+            else
+            {
+                _logger.LogError("No company facts found for CIK: {Cik} or Company Name is null/empty", cik);
+            }
+            return company;
+        }, ct);
     }
     public async Task<string> ImportCompaniesAsync(CancellationToken ct = default)
     {
@@ -187,9 +199,9 @@ public class CompanyService : ICompanyService
         }
         return $"Imported {importedCiks} out of {totalCiks} CIKs.";
     }
-    public async Task<List<ForaFinCompanyDto>> GetAllCompaniesAsync()
+    public async Task<List<ForaFinCompanyDto>> GetAllCompaniesAsync(CancellationToken ct = default)
     {
-        var companies = await _foraFinRepository.GetAllAsync(string.Empty);
+        var companies = await _foraFinRepository.GetAllAsync(string.Empty, ct);
         return companies.Select(c => new ForaFinCompanyDto(
             c.Id,
             c.Name,
