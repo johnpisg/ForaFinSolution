@@ -1,4 +1,5 @@
 using ForaFin.CompaniesApi.Application.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -6,10 +7,16 @@ using System.Text;
 
 public class TokenValidator : ITokenValidator
 {
-    private const string SecretKey = "FOREFIN_AZURE_FUCTION_IMPLEMENTED_AS_SOLUTION_SECRET_KEY_12345";
-    private const string MyIssuer = "ForeFinAppLocal";
-    private const string MyAudience = "ForeFinAzureFunction";
+    private readonly string SecretKey;
+    private readonly string MyIssuer;
+    private readonly string MyAudience;
 
+    public TokenValidator(IConfiguration configuration)
+    {
+        SecretKey = configuration.GetValue<string>("SecretKey")!;
+        MyIssuer = configuration.GetValue<string>("MyIssuer")!;
+        MyAudience = configuration.GetValue<string>("MyAudience")!;
+    }
     public Task<string> GenerateTokenAsync()
     {
         var key = Encoding.ASCII.GetBytes(SecretKey);
