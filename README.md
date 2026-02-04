@@ -6,6 +6,8 @@ The solution is located in the ForaFin project, it exposes some http endpoints a
 It works with a in-memory database for develop mode. And use a Logs/ folder to register the logs from the app.
 We need to run that project and we will get 4 endpoints urls locally.
 
+```dotnet clean && dotnet build && dotnet test```
+
 ## Functions
 
 ### 1. GetToken:
