@@ -22,11 +22,13 @@ public class SecEdgarService : ISecEdgarService
         {
             using(var httpClient = _httpClientFactory.CreateClient("ExternalApi"))
             {
+                _logger.LogInformation("Fetching company facts for CIK: {Cik}", cik);
                 var response = await httpClient.GetAsync($"CIK{cik.PadLeft(10, '0')}.json", ct);
                 if (response.IsSuccessStatusCode)
                 {
                     await using var stream = await response.Content.ReadAsStreamAsync(ct);
                     var edgarCompanyInfo = await JsonSerializer.DeserializeAsync<EdgarCompanyInfo>(stream, _jsonOptions, ct);
+                    _logger.LogInformation("Successfully retrieved company facts for CIK: {Cik}", cik);
                     return edgarCompanyInfo;
                 }
             }

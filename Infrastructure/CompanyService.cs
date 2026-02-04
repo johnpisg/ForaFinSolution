@@ -121,6 +121,7 @@ public class CompanyService : ICompanyService
     }
     public async Task<string[]> GetAllCikAsync(CancellationToken ct = default)
     {
+        _logger.LogInformation("Retrieving all CIKs from configuration.");
         var ciks = _configuration.GetValue<string>("SecEdgarCiks");
         if(string.IsNullOrEmpty(ciks))
         {
@@ -136,6 +137,7 @@ public class CompanyService : ICompanyService
             var companyFacts = await _secEdgarService.GetCompanyFactsAsync(cik, ct);
             if(companyFacts != null && !string.IsNullOrEmpty(companyFacts.EntityName))
             {
+                _logger.LogInformation("Mapping company: {EntityName} with CIK: {Cik}", companyFacts.EntityName, cik);
                 company = new ForaFinCompany
                 {
                     Id = int.Parse(cik),
@@ -174,6 +176,7 @@ public class CompanyService : ICompanyService
     public async Task<string> ImportCompaniesAsync(CancellationToken ct = default)
     {
         var ciks = await GetAllCikAsync();
+        _logger.LogInformation("Starting import of {TotalCiks} CIKs.", ciks.Length);
         var totalCiks = ciks.Length;
         var importedCiks = 0;
         var bacthSize = 10;
@@ -188,6 +191,7 @@ public class CompanyService : ICompanyService
                 var companiesToSave = companies.Where(c => c != null).ToList();
                 if(companiesToSave != null && companiesToSave.Count > 0)
                 {
+                    _logger.LogInformation("Saving batch of {Count} companies to the repository.", companiesToSave.Count);
                     await _foraFinRepository.AddRangeAsync(companiesToSave!, ct);
                     importedCiks += companiesToSave.Count;
                 }

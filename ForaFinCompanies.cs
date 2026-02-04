@@ -63,6 +63,7 @@ public class ForaFinCompanies
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
             var result = await _companyService.GetCompanyFactsAsync(body, vinculado.Token);
+            _logger.LogInformation("GetForaFinCompanies completed successfully.");
             return Results.Ok(result);
         }
         catch (UnauthorizedAccessException uaEx)
@@ -72,7 +73,7 @@ public class ForaFinCompanies
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting company facts.");
+            _logger.LogError(ex, "GetForaFinCompanies: Error getting company facts.");
             return Results.Problem(ex.Message, statusCode: 400);
         }
     }
@@ -87,6 +88,7 @@ public class ForaFinCompanies
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
             var msg = await _companyService.ImportCompaniesAsync(vinculado.Token);
+            _logger.LogInformation("ImportCompanies result: {msg}", msg);
             return Results.Ok(msg);
         }
         catch (UnauthorizedAccessException uaEx)
@@ -111,6 +113,7 @@ public class ForaFinCompanies
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
             var result = await _companyService.GetAllCompaniesAsync(vinculado.Token);
+            _logger.LogInformation("GetAllCompanies completed successfully.");
             return Results.Ok(result);
         }
         catch (UnauthorizedAccessException uaEx)
