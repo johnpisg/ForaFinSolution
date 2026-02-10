@@ -48,6 +48,7 @@ public class Program
         );
         builder.Services.AddScoped<ITokenValidator, TokenValidator>();
         builder.Services.AddScoped<IForaFinRepository, ForaFinRepository>();
+        builder.Services.AddScoped<IBgTaskRepository, BgTaskRepository>();
         builder.Services.AddScoped<ISecEdgarService, SecEdgarService>();
         builder.Services.AddScoped<ICompanyService, CompanyService>();
         builder.Services.AddSingleton(new JsonSerializerOptions
