@@ -18,11 +18,13 @@ public class CompanyService : ICompanyService
     private readonly ILogger<CompanyService> _logger;
     private ISecEdgarService _secEdgarService;
     private readonly IForaFinRepository _foraFinRepository;
+    private readonly IBgTaskRepository _bgTaskRepository;
     private readonly AsyncRetryPolicy _retryPolicy ;
     public CompanyService(ISecEdgarService secEdgarService, IConfiguration configuration,
-                IForaFinRepository foraFinRepository, ILogger<CompanyService> logger)
+                IForaFinRepository foraFinRepository, IBgTaskRepository bgTaskRepository, ILogger<CompanyService> logger)
     {
         _secEdgarService = secEdgarService;
+        _bgTaskRepository = bgTaskRepository;
         _logger = logger;
         _configuration = configuration;
         _foraFinRepository = foraFinRepository;
@@ -129,7 +131,7 @@ public class CompanyService : ICompanyService
         }
         return await Task.FromResult(ciks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
-    private async Task<ForaFinCompany?> ImportCompanyByCikAsync(string cik, CancellationToken ct = default)
+    public async Task<ForaFinCompany?> ImportCompanyByCikAsync(string cik, CancellationToken ct = default)
     {
         return await _retryPolicy.ExecuteAsync(async (token) =>
         {
@@ -203,6 +205,12 @@ public class CompanyService : ICompanyService
         }
         return $"Imported {importedCiks} out of {totalCiks} CIKs.";
     }
+    public async Task<ForaFinCompany> AddCompanyAsync(ForaFinCompany company, CancellationToken ct = default)
+    {
+        await _foraFinRepository.AddAsync(company);
+        await _foraFinRepository.SaveChangesAsync();
+        return company;
+    }
     public async Task<List<ForaFinCompanyDto>> GetAllCompaniesAsync(CancellationToken ct = default)
     {
         var companies = await _foraFinRepository.GetAllAsync(string.Empty, ct);
@@ -213,5 +221,40 @@ public class CompanyService : ICompanyService
                 new ForaFinCompanyIncomeInfoDto(i.Id, i.Year, i.Income, i.CompanyId)
             ).ToList()
         )).ToList();
+    }
+    public async Task<bool> AnyCompanyAsync(int companyId, CancellationToken ct = default)
+    {
+        var company = await _foraFinRepository.GetCompanyByIdAsync(companyId, ct);
+        return company != null;
+    }
+    public async Task<List<string>> GetNotStoredCiks(List<string> allCiks, CancellationToken ct = default)
+    {
+        return await _foraFinRepository.GetNotStoredCiks(allCiks, ct);
+    }
+
+    public async Task<BgTask> StoreBgTaskAsync(BgTask newTask)
+    {
+        await _bgTaskRepository.AddAsync(newTask);
+        await _bgTaskRepository.SaveChangesAsync();
+        return newTask;
+    }
+
+    public async Task<BgTask?> GetBgTaskAsync(Guid id)
+    {
+        return await _bgTaskRepository.GetByIdAsync(id);
+    }
+    public async Task<BgTask> UpdateBgTaskStatusAsync(Guid id, BgTaskStatus newStatus, string comment = "")
+    {
+        var task = await _bgTaskRepository.GetByIdAsync(id);
+        if (task == null)
+        {
+            throw new Exception($"BgTask with id {id} not found.");
+        }
+        task.Status = newStatus;
+        task.Comments = comment;
+        task.UpdatedAt = DateTime.UtcNow;
+        // await _bgTaskRepository.AddAsync(task);
+        await _bgTaskRepository.SaveChangesAsync();
+        return task;
     }
 }

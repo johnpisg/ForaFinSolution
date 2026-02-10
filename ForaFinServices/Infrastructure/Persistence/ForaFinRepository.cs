@@ -25,7 +25,12 @@ public class ForaFinRepository: IForaFinRepository
 
         return await query.Include(c => c.IncomeInfos).OrderBy(c => c.Name).ToListAsync(ct);
     }
-
+     public async Task<ForaFinCompany?> GetCompanyByIdAsync(int companyId, CancellationToken ct = default)
+    {
+        var query = _dbContext.Companies.AsNoTracking().AsQueryable();
+        query = query.Where(c => c.Id == companyId);
+        return await query.FirstOrDefaultAsync(ct);
+    }
     public async Task AddAsync(ForaFinCompany item)
     {
         foreach (var incomeInfo in item.IncomeInfos)
@@ -59,5 +64,24 @@ public class ForaFinRepository: IForaFinRepository
     public async Task SaveChangesAsync()
     {
         await _dbContext.SaveChangesAsync();
+    }
+    public async Task<List<string>> GetNotStoredCiks(List<string> allCiks, CancellationToken ct = default)
+    {
+        var allCikIds = allCiks
+            .Select(id => int.TryParse(id, out var parsed) ? parsed : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToList();
+
+        var storedCikIds = await _dbContext.Companies
+            .AsNoTracking()
+            .Where(c => allCikIds.Contains(c.Id))
+            .Select(c => c.Id)
+            .ToListAsync(ct);
+
+        return allCikIds
+            .Except(storedCikIds)
+            .Select(id => id.ToString())
+            .ToList();
     }
 }

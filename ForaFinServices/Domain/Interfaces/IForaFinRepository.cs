@@ -6,4 +6,6 @@ public interface IForaFinRepository
     Task AddAsync(ForaFinCompany item);
     Task AddRangeAsync(IEnumerable<ForaFinCompany> items, CancellationToken ct = default);
     Task SaveChangesAsync();
+    Task<ForaFinCompany?> GetCompanyByIdAsync(int companyId, CancellationToken ct = default);
+    Task<List<string>> GetNotStoredCiks(List<string> allCiks, CancellationToken ct = default);
 }
