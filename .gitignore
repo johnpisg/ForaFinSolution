@@ -9,3 +9,10 @@ node_modules/
 dist/
 ForaFin/obj/
 ForaFin/bin/
+# Azurite local storage
+__azurite_db_*__
+__blobstorage__
+__queuestorage__
+__tablestorage__
+azurite_data/
+*.vhd
