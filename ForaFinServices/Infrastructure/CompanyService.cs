@@ -6,6 +6,7 @@ using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Domain;
 using ForaFinServices.Domain.Interfaces;
 using ForaFinServices.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -269,5 +270,14 @@ public class CompanyService : ICompanyService
         var context = scope.ServiceProvider.GetRequiredService<ForaFinDb>();
         await context.Companies.AddRangeAsync(companies, ct);
         await context.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<BgTask>> GetOrphansBgTasksAsync(CancellationToken ct = default)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ForaFinDb>();
+        return await context.BgTasks
+                .Where(t => t.Status == BgTaskStatus.Created || t.Status == BgTaskStatus.Processing)
+                .ToListAsync(ct);
     }
 }

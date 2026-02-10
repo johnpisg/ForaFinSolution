@@ -17,4 +17,5 @@ public interface ICompanyService
     Task<BgTask> UpdateBgTaskStatusAsync(Guid id, BgTaskStatus newStatus, string comment);
     Task<List<string>> GetNotStoredCiks(List<string> allCiks, CancellationToken ct = default);
     Task AddCompaniesBatchAsync(IEnumerable<ForaFinCompany> companies, CancellationToken ct);
+    Task<List<BgTask>> GetOrphansBgTasksAsync(CancellationToken ct = default);
 }
