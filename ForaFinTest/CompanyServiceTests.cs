@@ -5,6 +5,7 @@ using ForaFinServices.Domain.External;
 using ForaFinServices.Domain.Interfaces;
 using ForaFinServices.Infrastructure;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -16,6 +17,8 @@ public class CompanyServiceTests
     private readonly Mock<IConfiguration> _mockConfiguration;
     private readonly Mock<IForaFinRepository> _mockRepository;
     private readonly Mock<ILogger<CompanyService>> _mockLogger;
+    private readonly Mock<IBgTaskRepository> _mockBgTaskRepository;
+    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly CompanyService _service;
     private const decimal tenBillion = 10_000_000_000M;
 
@@ -25,12 +28,16 @@ public class CompanyServiceTests
         _mockConfiguration = new Mock<IConfiguration>();
         _mockRepository = new Mock<IForaFinRepository>();
         _mockLogger = new Mock<ILogger<CompanyService>>();
+        _mockBgTaskRepository = new Mock<IBgTaskRepository>();
+        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
 
         _service = new CompanyService(
             _mockSecEdgarService.Object,
             _mockConfiguration.Object,
             _mockRepository.Object,
-            _mockLogger.Object
+            _mockBgTaskRepository.Object,
+            _mockLogger.Object,
+            _mockServiceScopeFactory.Object
         );
     }
 

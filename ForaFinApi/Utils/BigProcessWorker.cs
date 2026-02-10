@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using ForaFinServices.Application.Interfaces;
+using ForaFinServices.Domain;
 
 namespace ForaFinApi.Utils;
 
@@ -40,32 +42,58 @@ public class BigProcessWorker : BackgroundService
                 _logger.LogInformation("Starting import of {TotalCiks} CIKs.", cikListToRequest.Count);
                 var totalCiks = cikListToRequest.Count;
                 var importedCiks = 0;
-                foreach(var cik in cikListToRequest)
+
+                // --- PROCESAMIENTO PARALELO ---
+                // Grado de paralelismo: 5 peticiones simultáneas (para no ser bloqueados por el API externo)
+                var options = new ParallelOptions {
+                    MaxDegreeOfParallelism = 5,
+                    CancellationToken = stoppingToken
+                };
+                var downloadedCompanies = new ConcurrentBag<ForaFinCompany>();
+                await Parallel.ForEachAsync(cikListToRequest, options, async (cik, token) =>
                 {
                     try
                     {
-                        stoppingToken.ThrowIfCancellationRequested();
-
                         // 4. Si no existe, importarlo
                         _logger.LogInformation("Importing CIK {Cik} for TaskId: {TaskId}", cik, workItem.TaskId);
-                        var importResult = await companyService.ImportCompanyByCikAsync(cik, stoppingToken);
+                        var importResult = await companyService.ImportCompanyByCikAsync(cik, token);
                         if(importResult != null)
                         {
+                            downloadedCompanies.Add(importResult);
+                        }
+                        if (downloadedCompanies.Count >= 50)
+                        {
+                            // Extraemos los 50 actuales y limpiamos la bolsa para seguir
+                            var batch = new List<ForaFinCompany>();
+                            while (downloadedCompanies.TryTake(out var item)) batch.Add(item);
                             // 5. Guardar en BD
-                            _logger.LogInformation("Saving imported CIK {Cik} to database for TaskId: {TaskId}", cik, workItem.TaskId);
-                            await companyService.AddCompanyAsync(importResult, stoppingToken);
+                            _logger.LogInformation("Saving imported batch of {BatchCount} companies to database for TaskId: {TaskId}", batch.Count, workItem.TaskId);
+                            await companyService.AddCompaniesBatchAsync(batch, token);
                         }
 
-                        importedCiks++;
-                        //6. Actualizar el status del proceso en la BD (opcional, para seguimiento)
-                        _logger.LogInformation("Updating task status for TaskId: {TaskId} - {ImportedCiks}/{TotalCiks} CIKs processed", workItem.TaskId, importedCiks, totalCiks);
-                        await companyService.UpdateBgTaskStatusAsync(workItem.TaskId, BgTaskStatus.Processing, $"{importedCiks}/{totalCiks} CIKs processed");
+                        // Interlock para actualizar contador de forma segura entre hilos
+                        var current = Interlocked.Increment(ref importedCiks);
+
+                        // 6. Actualizar status cada 10 elementos para no saturar la BD con updates
+                        if (current % 10 == 0 || current == totalCiks)
+                        {
+                            _logger.LogInformation("Updating task status for TaskId: {TaskId} - {ImportedCiks}/{TotalCiks} CIKs processed", workItem.TaskId, importedCiks, totalCiks);
+                            // Nota: UpdateBgTaskStatusAsync debe manejar su propio scope interno o ser thread-safe
+                            await companyService.UpdateBgTaskStatusAsync(workItem.TaskId, BgTaskStatus.Processing, $"{current}/{totalCiks} procesados");
+                        }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error importing CIK {Cik}", cik);
                     }
+                });
+
+                // Guardar los que sobraron al final del bucle
+                if (!downloadedCompanies.IsEmpty)
+                {
+                    await companyService.AddCompaniesBatchAsync(downloadedCompanies, stoppingToken);
                 }
+
                 // 7. Una vez terminado, actualizar el status a Completed
                 _logger.LogInformation("Updating task status to Completed for TaskId: {TaskId}", workItem.TaskId);
                 await companyService.UpdateBgTaskStatusAsync(workItem.TaskId, BgTaskStatus.Completed, $"Import completed: {importedCiks}/{totalCiks} CIKs processed");

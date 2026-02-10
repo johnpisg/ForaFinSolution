@@ -5,7 +5,9 @@ using ForaFinServices.Application.Dtos;
 using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Domain;
 using ForaFinServices.Domain.Interfaces;
+using ForaFinServices.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
@@ -20,14 +22,16 @@ public class CompanyService : ICompanyService
     private readonly IForaFinRepository _foraFinRepository;
     private readonly IBgTaskRepository _bgTaskRepository;
     private readonly AsyncRetryPolicy _retryPolicy ;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     public CompanyService(ISecEdgarService secEdgarService, IConfiguration configuration,
-                IForaFinRepository foraFinRepository, IBgTaskRepository bgTaskRepository, ILogger<CompanyService> logger)
+                IForaFinRepository foraFinRepository, IBgTaskRepository bgTaskRepository, ILogger<CompanyService> logger, IServiceScopeFactory serviceScopeFactory)
     {
         _secEdgarService = secEdgarService;
         _bgTaskRepository = bgTaskRepository;
         _logger = logger;
         _configuration = configuration;
         _foraFinRepository = foraFinRepository;
+        _serviceScopeFactory = serviceScopeFactory;
 
         _retryPolicy = Policy.Handle<HttpRequestException>()
             .Or<OperationCanceledException>()
@@ -245,16 +249,25 @@ public class CompanyService : ICompanyService
     }
     public async Task<BgTask> UpdateBgTaskStatusAsync(Guid id, BgTaskStatus newStatus, string comment = "")
     {
-        var task = await _bgTaskRepository.GetByIdAsync(id);
-        if (task == null)
+        using var scope = _serviceScopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ForaFinDb>();
+
+        var task = await context.BgTasks.FindAsync(id);
+        if (task != null)
         {
-            throw new Exception($"BgTask with id {id} not found.");
+            task.Status = newStatus;
+            task.Comments = comment;
+            task.UpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
         }
-        task.Status = newStatus;
-        task.Comments = comment;
-        task.UpdatedAt = DateTime.UtcNow;
-        // await _bgTaskRepository.AddAsync(task);
-        await _bgTaskRepository.SaveChangesAsync();
         return task;
+    }
+
+    public async Task AddCompaniesBatchAsync(IEnumerable<ForaFinCompany> companies, CancellationToken ct)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ForaFinDb>();
+        await context.Companies.AddRangeAsync(companies, ct);
+        await context.SaveChangesAsync(ct);
     }
 }
