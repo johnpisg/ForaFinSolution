@@ -1,5 +1,5 @@
-using ForaFin.CompaniesApi.Domain.External;
-using ForaFin.CompaniesApi.Infrastructure.External;
+using ForaFinServices.Domain.External;
+using ForaFinServices.Infrastructure.External;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;

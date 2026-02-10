@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ForaFin.CompaniesApi.Application.Interfaces;
-using ForaFin.CompaniesApi.Domain.Interfaces;
-using ForaFin.CompaniesApi.Infrastructure;
-using ForaFin.CompaniesApi.Infrastructure.External;
-using ForaFin.CompaniesApi.Infrastructure.Persistence;
+using ForaFinServices.Application.Interfaces;
+using ForaFinServices.Domain.Interfaces;
+using ForaFinServices.Infrastructure;
+using ForaFinServices.Infrastructure.Converter;
+using ForaFinServices.Infrastructure.External;
+using ForaFinServices.Infrastructure.Persistence;
+using ForaFinServices.Infrastructure.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.EntityFrameworkCore;

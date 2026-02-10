@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
+    <ProjectReference Include="../ForaFinServices/ForaFinServices.csproj" />
     <ProjectReference Include="..\ForaFin\ForaFin.csproj" />
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

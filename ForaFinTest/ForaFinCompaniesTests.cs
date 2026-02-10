@@ -1,6 +1,7 @@
 using ForaFin.CompaniesApi;
-using ForaFin.CompaniesApi.Application.Dtos;
-using ForaFin.CompaniesApi.Application.Interfaces;
+using ForaFinServices.Application.Dtos;
+using ForaFinServices.Application.Interfaces;
+using ForaFinServices.Infrastructure.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;

@@ -1,5 +1,5 @@
-using ForaFin.CompaniesApi;
-using ForaFin.CompaniesApi.Application.Interfaces;
+using ForaFinServices.Application.Interfaces;
+using ForaFinServices.Infrastructure.Security;
 using Microsoft.Extensions.Configuration;
 using Moq;
 

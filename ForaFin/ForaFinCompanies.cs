@@ -2,8 +2,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using ForaFin.CompaniesApi.Application.Dtos;
-using ForaFin.CompaniesApi.Application.Interfaces;
+using ForaFinServices.Application.Dtos;
+using ForaFinServices.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 
 

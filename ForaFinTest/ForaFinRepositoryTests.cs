@@ -1,5 +1,5 @@
-using ForaFin.CompaniesApi.Domain;
-using ForaFin.CompaniesApi.Infrastructure.Persistence;
+using ForaFinServices.Domain;
+using ForaFinServices.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 

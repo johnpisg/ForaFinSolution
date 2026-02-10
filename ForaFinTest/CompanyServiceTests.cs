@@ -1,9 +1,9 @@
-using ForaFin.CompaniesApi.Application.Dtos;
-using ForaFin.CompaniesApi.Application.Interfaces;
-using ForaFin.CompaniesApi.Domain;
-using ForaFin.CompaniesApi.Domain.External;
-using ForaFin.CompaniesApi.Domain.Interfaces;
-using ForaFin.CompaniesApi.Infrastructure;
+using ForaFinServices.Application.Dtos;
+using ForaFinServices.Application.Interfaces;
+using ForaFinServices.Domain;
+using ForaFinServices.Domain.External;
+using ForaFinServices.Domain.Interfaces;
+using ForaFinServices.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;

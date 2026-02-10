@@ -1,0 +1,6 @@
+@ForaFinApi_HostAddress = http://localhost:5069
+
+GET {{ForaFinApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
