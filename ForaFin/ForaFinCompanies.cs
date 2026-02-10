@@ -24,32 +24,11 @@ public class ForaFinCompanies
         _jsonOptions = jsonOptions;
     }
 
-    private async Task<string> GetAuthenticatedUser(HttpRequestData req)
-    {
-        // Extraer Header
-        if (!req.Headers.TryGetValues("Authorization", out var authHeaders))
-            throw new UnauthorizedAccessException("Authorization header missing.");
-
-        var bearerToken = authHeaders.FirstOrDefault(h => h.StartsWith("Bearer "));
-        if (string.IsNullOrEmpty(bearerToken))
-            throw new UnauthorizedAccessException("Bearer token missing.");
-
-        var token = bearerToken.Replace("Bearer ", "");
-        var user = await _tokenValidator.ValidateTokenAsync(token);
-        if (user == null || user.Claims == null || !user.Claims.Any(c => c.Type == "name"))
-            throw new UnauthorizedAccessException("Invalid token.");
-
-        // Si llega aquí, el token es válido. Puedes obtener el nombre del usuario:
-        var userName = user.Claims.First(c => c.Type == "name").Value;
-        return userName;
-    }
-
     [Function("GetForaFinCompanies")]
     public async Task<IResult> GetForaFinCompanies([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequestData req, CancellationToken cancellationToken)
     {
         try
         {
-            await GetAuthenticatedUser(req);
             _logger.LogInformation("C# HTTP trigger function processed a request.");
             ForaFinCompaniesInputDto? body = null;
             if (req.Body != null)
@@ -83,7 +62,6 @@ public class ForaFinCompanies
     {
         try
         {
-            await GetAuthenticatedUser(req);
             _logger.LogInformation("C# HTTP trigger function ImportCompanies.");
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
@@ -108,7 +86,6 @@ public class ForaFinCompanies
     {
         try
         {
-            await GetAuthenticatedUser(req);
             _logger.LogInformation("C# HTTP trigger function GetAllCompanies.");
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             using var vinculado = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);

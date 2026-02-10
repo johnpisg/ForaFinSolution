@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ForaFin.Utils;
 using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Domain.Interfaces;
 using ForaFinServices.Infrastructure;
@@ -71,7 +72,11 @@ public class Program
         });
         builder.Services.AddProblemDetails();
 
+        builder.Services.AddSingleton<JwtAuthenticationMiddleware>();
+        builder.UseMiddleware<JwtAuthenticationMiddleware>();
+
         var app = builder.Build();
+
         app.Run();
 
     }
