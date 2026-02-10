@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Domain;
-using ForaFinServices.Infrastructure;
 
 namespace ForaFinApi.Utils;
 
@@ -20,27 +19,23 @@ public class BigProcessWorker : BackgroundService
 
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Iniciando Worker: Verificando tareas huérfanas en la base de datos...");
-        using (var scope = _serviceScopeFactory.CreateScope())
-        {
-            var companyService = scope.ServiceProvider.GetRequiredService<ICompanyService>();
-
-            // Buscamos tareas que quedaron en 'Created' o 'Processing' (porque el servidor se apagó)
-            var orphanTasks = await companyService.GetOrphansBgTasksAsync(cancellationToken);
-            foreach (var task in orphanTasks)
-            {
-                _logger.LogInformation("Recuperando tarea huérfana: {TaskId}", task.Id);
-                // Las re-encolamos para que ExecuteAsync las tome
-                await _taskQueue.QueueBackgroundWorkItemAsync(new BgWorkItem(task.Id, task.StartsWith));
-            }
-        }
-
-        // Llamamos a la base (esto inicia el ExecuteAsync)
         await base.StartAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _logger.LogInformation("Iniciando Worker: Verificando tareas huérfanas en la base de datos...");
+        using (var scope = _serviceScopeFactory.CreateScope())
+        {
+            var companyService = scope.ServiceProvider.GetRequiredService<ICompanyService>();
+            var orphanTasks = await companyService.GetOrphansBgTasksAsync(stoppingToken);
+            foreach (var task in orphanTasks)
+            {
+                _logger.LogInformation("Recuperando tarea huérfana: {TaskId}", task.Id);
+                await _taskQueue.QueueBackgroundWorkItemAsync(new BgWorkItem(task.Id, task.StartsWith));
+            }
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             _logger.LogInformation("Waiting for background work item...");
@@ -65,8 +60,6 @@ public class BigProcessWorker : BackgroundService
                 var totalCiks = cikListToRequest.Count;
                 var importedCiks = 0;
 
-                // --- PROCESAMIENTO PARALELO ---
-                // Grado de paralelismo: 5 peticiones simultáneas (para no ser bloqueados por el API externo)
                 var options = new ParallelOptions {
                     MaxDegreeOfParallelism = 5,
                     CancellationToken = stoppingToken
