@@ -30,7 +30,7 @@ public class Program
         builder.Services.AddScoped<IForaFinRepository, ForaFinRepository>();
         builder.Services.AddScoped<IBgTaskRepository, BgTaskRepository>();
         builder.Services.AddScoped<ISecEdgarService, SecEdgarService>();
-        builder.Services.AddScoped<ICompanyService, CompanyService>();
+        builder.Services.AddScoped<ICompanyService, CompanyServiceScopeFactory>();
         builder.Services.AddSingleton(new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,

@@ -34,4 +34,11 @@ public class BgTaskRepository: IBgTaskRepository
     {
         await _dbContext.SaveChangesAsync();
     }
+    
+    public async Task<List<BgTask>> GetOrphansBgTasksAsync(CancellationToken ct = default)
+    {
+        return await _dbContext.BgTasks
+            .Where(t => t.Status == BgTaskStatus.Created || t.Status == BgTaskStatus.Processing)
+            .ToListAsync(ct);
+    }
 }
