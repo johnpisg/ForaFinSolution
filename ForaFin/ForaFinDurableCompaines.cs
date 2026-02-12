@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Security.Claims;
+using DurableTask.Core;
 using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Domain;
 using Microsoft.Azure.Functions.Worker;
@@ -33,8 +34,16 @@ public class ForaFinDurableCompanies
     [Function("CompanyImportOrchestrator")]
     public async Task<string> RunOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
+        var retryOptions = new TaskOptions()
+        {
+            Retry = new TaskRetryOptions(new RetryPolicy(
+                maxNumberOfAttempts: 3,
+                firstRetryInterval: TimeSpan.FromSeconds(5),
+                backoffCoefficient: 2)
+            )
+        };
         var outputs = new List<string>();
-        outputs.Add(await context.CallActivityAsync<string>("ImportCompanies_Activity", null));
+        outputs.Add(await context.CallActivityAsync<string>("ImportCompanies_Activity", null, retryOptions));
         return $"Proceso completado: {string.Join(", ", outputs)}";
     }
 
