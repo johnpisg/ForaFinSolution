@@ -18,4 +18,6 @@ public interface ICompanyService
     Task<List<string>> GetNotStoredCiks(List<string> allCiks, CancellationToken ct = default);
     Task AddCompaniesBatchAsync(IEnumerable<ForaFinCompany> companies, CancellationToken ct);
     Task<List<BgTask>> GetOrphansBgTasksAsync(CancellationToken ct = default);
+    Task<ImportJob> StoreImportJobAsync(CancellationToken ct = default);
+    Task<string> ImportSingleCompanyAsync(StartImportRequestDto data, CancellationToken ct = default);
 }

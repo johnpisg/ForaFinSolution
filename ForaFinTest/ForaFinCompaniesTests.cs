@@ -1,4 +1,4 @@
-using ForaFin.CompaniesApi;
+using ForaFin;
 using ForaFinServices.Application.Dtos;
 using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Infrastructure.Security;

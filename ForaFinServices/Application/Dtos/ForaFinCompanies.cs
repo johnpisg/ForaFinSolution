@@ -4,3 +4,5 @@ public sealed record ForaFinCompaniesOutputDto(int Id, string Name, decimal Stan
 
 public sealed record ForaFinCompanyDto(int Id, string Name, List<ForaFinCompanyIncomeInfoDto> IncomeInfos);
 public sealed record ForaFinCompanyIncomeInfoDto(int Id, int Year, decimal Income, int CompanyId);
+
+public sealed record StartImportRequestDto(Guid OutboxMessageId, string Cik);

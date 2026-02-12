@@ -134,7 +134,7 @@ public class CompanyService : ICompanyService
         }
         return await Task.FromResult(ciks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
-    public async Task<ForaFinCompany?> ImportCompanyByCikAsync(string cik, CancellationToken ct = default)
+    public virtual async Task<ForaFinCompany?> ImportCompanyByCikAsync(string cik, CancellationToken ct = default)
     {
         return await _retryPolicy.ExecuteAsync(async (token) =>
         {
@@ -178,7 +178,7 @@ public class CompanyService : ICompanyService
             return company;
         }, ct);
     }
-    public async Task<string> ImportCompaniesAsync(CancellationToken ct = default)
+    public virtual async Task<string> ImportCompaniesAsync(CancellationToken ct = default)
     {
         var ciks = await GetAllCikAsync();
         _logger.LogInformation("Starting import of {TotalCiks} CIKs.", ciks.Length);
@@ -246,7 +246,7 @@ public class CompanyService : ICompanyService
     {
         return await _bgTaskRepository.GetByIdAsync(id);
     }
-    
+
     public virtual async Task<BgTask> UpdateBgTaskStatusAsync(Guid id, BgTaskStatus newStatus, string comment = "")
     {
         var task = await _bgTaskRepository.GetByIdAsync(id);
@@ -269,5 +269,13 @@ public class CompanyService : ICompanyService
     public virtual async Task<List<BgTask>> GetOrphansBgTasksAsync(CancellationToken ct = default)
     {
         return await _bgTaskRepository.GetOrphansBgTasksAsync(ct);
+    }
+    public virtual async Task<ImportJob> StoreImportJobAsync(CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+    public virtual Task<string> ImportSingleCompanyAsync(StartImportRequestDto data, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
     }
 }
