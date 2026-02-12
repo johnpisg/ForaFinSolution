@@ -16,10 +16,12 @@ public class ForaFinSaga
 {
     private readonly ILogger<ForaFinSaga> _logger;
     private readonly ICompanyService _companyService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public ForaFinSaga(ILoggerFactory loggerFactory, ICompanyService companyService)
+    public ForaFinSaga(ILoggerFactory loggerFactory, ICompanyService companyService, IServiceProvider serviceProvider)
     {
         _companyService = companyService;
+        _serviceProvider = serviceProvider;
         _logger = loggerFactory.CreateLogger<ForaFinSaga>();
     }
 
@@ -56,6 +58,14 @@ public class ForaFinSaga
         //Per company CIK
         var data = JsonSerializer.Deserialize<StartImportRequestDto>(messageContent);
         var res = await _companyService.ImportSingleCompanyAsync(data, ct);
+    }
+
+    [Function("ProcessOutbox_Timer")]
+    public async Task Run([TimerTrigger("*/10 * * * * *")] TimerInfo myTimer) // Cada 10 segundos
+    {
+        _logger.LogInformation($"ProcessOutbox_Timer triggered at: {DateTime.Now}");
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        await ImporterWorker.Import(_serviceProvider, cts.Token, _logger);
     }
 
 }

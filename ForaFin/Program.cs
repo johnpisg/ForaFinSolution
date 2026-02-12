@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FofaFin.Utils;
 using ForaFin.Utils;
 using ForaFinServices.Application.Interfaces;
 using ForaFinServices.Domain.Interfaces;
@@ -51,7 +52,12 @@ public class Program
         builder.Services.AddScoped<IForaFinRepository, ForaFinRepository>();
         builder.Services.AddScoped<IBgTaskRepository, BgTaskRepository>();
         builder.Services.AddScoped<ISecEdgarService, SecEdgarService>();
-        builder.Services.AddScoped<ICompanyService, CompanyService>();
+        //builder.Services.AddScoped<ICompanyService, CompanyService>();
+        builder.Services.AddScoped<ICompanyService, CompanyServiceSaga>();
+        builder.Services.AddSingleton<IQueueService>(sp =>
+            new QueueService(builder.Configuration.GetValue<string>("AzureWebJobsStorage") ?? "")
+        );
+        builder.Services.AddHostedService<OutboxPublisherWorker>();
         builder.Services.AddSingleton(new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
